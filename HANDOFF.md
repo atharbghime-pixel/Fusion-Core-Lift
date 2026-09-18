@@ -17,7 +17,7 @@ The app is complete, locally tested, and committed on `main`. Run it from this f
 2. Preserve foreign-key setup and parameterized SQL in `get_db_connection()`.
 3. When adding profile fields, update schema, validation, INSERT, form, and templates together.
 4. Test all goal/level combinations plus knee, shoulder/wrist, and back injury terms after recommendation changes.
-5. Run the README test steps after every change. GET routes must never create a user.
+5. Run `python tests.py` and the README test steps after every change. GET routes must never create a user.
 6. GitHub pushing requires an account or SSH key with write access to the repository.
 
 ## Invariants

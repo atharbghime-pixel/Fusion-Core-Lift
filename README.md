@@ -28,6 +28,7 @@ FusionCoreLift/
 ├── .gitignore
 ├── README.md
 ├── HANDOFF.md               # concise continuity guide for another AI agent
+├── tests.py                 # repeatable end-to-end verification script
 ├── database.db              # created automatically; intentionally not committed
 ├── templates/
 │   ├── base.html
@@ -90,6 +91,14 @@ Use this for a quick demo:
 7. Visit `/dashboard/999999`; the app should return you to profile creation rather than crash.
 8. Restart Flask and visit `/users`; your previously created profiles remain listed.
 9. Visit `/health`; expected response: `{"status":"healthy"}`.
+
+To repeat the complete automated test suite on a fresh temporary database, run:
+
+```powershell
+python tests.py
+```
+
+The project passed this suite before delivery, including data persistence, exact sample metrics, injury filtering, invalid-form handling, and all app-generated navigation links.
 
 ## Database and API notes
 
