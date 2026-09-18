@@ -99,7 +99,7 @@ Use this for a quick demo:
 6. Try age `12`, height `300`, weight `10`, or blank required fields. The registration page should show friendly validation errors.
 7. Visit `/dashboard/999999`; the app should return you to profile creation rather than crash.
 8. Restart Flask and visit `/users`; your previously created profiles remain listed.
-9. Visit `/health`; expected response: `{"status":"healthy"}`.
+9. Visit `/health`; expected response: `{"status":"healthy","database":"connected"}`.
 
 To repeat the complete automated test suite on a fresh temporary database, run:
 
@@ -113,16 +113,23 @@ The project passed this suite before delivery, including data persistence, exact
 
 The database has `users` and `plans` tables, connected with a foreign key and cascade deletion. `plans` has an index for profile lookups and retains the workout/diet JSON snapshot generated when the profile is created. All SQL uses parameterized queries. No passwords or authentication are used in this first version.
 
-- `GET /health` — health check
+- `GET /health` — health check that also verifies the SQLite connection
 - `GET /users` — profile summary list
 - `GET /users/<id>` — one profile
-- `DELETE /users/<id>` — delete a profile and related plan (testing only)
+- `DELETE /users/<id>` — delete a profile and related plan. Requires an `X-API-Key` header matching `ADMIN_API_KEY`; deletion is disabled when that environment variable is not set.
+
+For a local administrative delete, set a key before starting the app:
+
+```powershell
+$env:ADMIN_API_KEY = "choose-a-long-random-value"
+python app.py
+```
 
 ## Common errors
 
 - **`python` is not recognized:** use the `py` commands above.
 - **`ModuleNotFoundError: flask`:** activate `venv`, then run `python -m pip install -r requirements.txt`.
-- **Port 5000 is in use:** stop the other Flask process, or change the last line of `app.py` to `app.run(debug=True, port=5001)`.
+- **Port 5000 is in use:** set `PORT=5001` before starting the app. Set `FLASK_DEBUG=true` only while developing locally.
 - **Database reset desired:** stop the app and delete only `database.db`; it is automatically recreated on the next run. This deletes saved profiles.
 
 ## Disclaimer

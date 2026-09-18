@@ -10,6 +10,7 @@ The app is complete, locally tested, and committed on `main`. Run it from this f
 - `users` stores submitted profiles; `plans` stores a JSON snapshot created on registration.
 - Dashboard, workout, and diet routes read the saved profile and its stored workout/diet JSON snapshot. Metrics are recalculated from the saved profile, while recommendation pages preserve the plan that was generated at registration.
 - Templates are server-rendered through Jinja. JavaScript is optional only.
+- `DELETE /users/<id>` requires an `X-API-Key` header matching the `ADMIN_API_KEY` environment variable. It remains unavailable until that key is configured.
 
 ## Reliable continuation checklist
 

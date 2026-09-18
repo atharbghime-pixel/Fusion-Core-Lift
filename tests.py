@@ -26,6 +26,7 @@ def run_tests():
                 raise AssertionError("Database accepted an invalid profile")
 
         client = app.test_client()
+        app.config["ADMIN_API_KEY"] = "test-admin-key"
         assert client.get("/").status_code == 200
         assert client.get("/register").status_code == 200
         profile = {"name": "Test User", "age": "20", "height": "170", "weight": "65",
@@ -67,7 +68,13 @@ def run_tests():
         injured = client.post("/register", data={**profile, "name": "Knee Test", "injury": "knee pain"}, follow_redirects=False)
         injury_page = client.get(injured.headers["Location"])
         assert b"Low-impact plan" in injury_page.data and b"Chair squat" not in injury_page.data
-        assert client.get("/health").get_json() == {"status": "healthy"}
+        assert client.get("/health").get_json() == {"status": "healthy", "database": "connected"}
+        assert client.get(f"/users/{user_id}").get_json()["name"] == "Test User"
+        assert client.delete(f"/users/{user_id}").status_code == 403
+        assert client.delete(f"/users/{user_id}", headers={"X-API-Key": "test-admin-key"}).get_json() == {"message": "User deleted"}
+        assert client.get(f"/users/{user_id}").status_code == 404
+        with db_connection() as connection:
+            assert connection.execute("SELECT COUNT(*) FROM plans WHERE user_id = ?", (user_id,)).fetchone()[0] == 0
 
 
 if __name__ == "__main__":

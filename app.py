@@ -1,12 +1,17 @@
 from contextlib import contextmanager
 from flask import flash, jsonify, redirect, render_template, request, url_for, Flask
+import hmac
 import json
 import math
 import os
 import sqlite3
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fusion-core-lift-local-key")
+app.config.from_mapping(
+    SECRET_KEY=os.environ.get("SECRET_KEY") or os.urandom(32),
+    ADMIN_API_KEY=os.environ.get("ADMIN_API_KEY"),
+    MAX_CONTENT_LENGTH=16 * 1024,
+)
 DATABASE = os.path.join(os.path.dirname(__file__), "database.db")
 
 VALID_GENDERS = {"Male", "Female", "Other"}
@@ -209,6 +214,13 @@ def load_saved_plan(plan):
     return json.loads(plan["workout_plan"]), json.loads(plan["diet_plan"])
 
 
+def has_valid_admin_key():
+    """Return whether a request presents the configured admin API key."""
+    configured_key = app.config["ADMIN_API_KEY"]
+    supplied_key = request.headers.get("X-API-Key", "")
+    return bool(configured_key) and hmac.compare_digest(supplied_key, configured_key)
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -266,7 +278,12 @@ def diet(user_id):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "healthy"})
+    try:
+        with db_connection() as connection:
+            connection.execute("SELECT 1")
+    except sqlite3.Error:
+        return jsonify({"status": "unhealthy", "database": "unavailable"}), 503
+    return jsonify({"status": "healthy", "database": "connected"})
 
 
 @app.route("/users")
@@ -278,6 +295,8 @@ def users():
 
 @app.route("/users/<int:user_id>", methods=["GET", "DELETE"])
 def user_api(user_id):
+    if request.method == "DELETE" and not has_valid_admin_key():
+        return jsonify({"error": "A valid X-API-Key header is required"}), 403
     with db_connection() as connection:
         user = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if not user:
@@ -291,4 +310,8 @@ def user_api(user_id):
 init_db()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "5000")),
+        debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true",
+    )
