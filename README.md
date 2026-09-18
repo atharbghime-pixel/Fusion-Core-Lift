@@ -29,6 +29,7 @@ FusionCoreLift/
 ├── README.md
 ├── HANDOFF.md               # concise continuity guide for another AI agent
 ├── tests.py                 # repeatable end-to-end verification script
+├── start.bat                # one-click launcher for Windows users
 ├── database.db              # created automatically; intentionally not committed
 ├── templates/
 │   ├── base.html
@@ -45,6 +46,14 @@ FusionCoreLift/
 ## Installation and running on Windows
 
 Open a terminal inside `FusionCoreLift`.
+
+### Easiest option: one click
+
+Double-click `start.bat`. On its first run it creates a local virtual environment, installs the one required package, opens the application in a browser, and starts the server. Python 3 must be installed first; download it from [python.org](https://www.python.org/downloads/) and select **Add Python to PATH** during installation.
+
+Keep the command window open while using the application. Close it to stop the server.
+
+### Manual option
 
 ```powershell
 python -m venv venv
