@@ -1,4 +1,5 @@
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
+from contextlib import contextmanager
+from flask import flash, jsonify, redirect, render_template, request, url_for, Flask
 import json
 import os
 import sqlite3
@@ -21,8 +22,22 @@ def get_db_connection():
     return connection
 
 
+@contextmanager
+def db_connection():
+    """Commit successful work and always close the SQLite connection."""
+    connection = get_db_connection()
+    try:
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def init_db():
-    with get_db_connection() as connection:
+    with db_connection() as connection:
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,7 +196,7 @@ def generate_diet(user):
 
 
 def get_user_and_plan(user_id):
-    with get_db_connection() as connection:
+    with db_connection() as connection:
         user = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         plan = connection.execute("SELECT * FROM plans WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
     return user, plan
@@ -201,7 +216,7 @@ def register():
                 flash(error, "danger")
             return render_template("register.html", form=request.form)
         workout, diet = generate_workout(profile), generate_diet(profile)
-        with get_db_connection() as connection:
+        with db_connection() as connection:
             cursor = connection.execute("""INSERT INTO users (name, age, height, weight, gender, goal, fitness_level, diet, injury)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", tuple(profile.values()))
             user_id = cursor.lastrowid
@@ -247,14 +262,14 @@ def health():
 
 @app.route("/users")
 def users():
-    with get_db_connection() as connection:
+    with db_connection() as connection:
         rows = connection.execute("SELECT id, name, age, goal, fitness_level, created_at FROM users ORDER BY id DESC").fetchall()
     return jsonify([dict(row) for row in rows])
 
 
 @app.route("/users/<int:user_id>", methods=["GET", "DELETE"])
 def user_api(user_id):
-    with get_db_connection() as connection:
+    with db_connection() as connection:
         user = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if not user:
             return jsonify({"error": "User not found"}), 404
