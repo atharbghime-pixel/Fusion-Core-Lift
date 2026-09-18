@@ -1,6 +1,7 @@
 """Repeatable end-to-end checks for Fusion Core Lift (no external test package)."""
 import os
 import re
+import sqlite3
 import tempfile
 
 import app as app_module
@@ -16,6 +17,13 @@ def run_tests():
         with db_connection() as connection:
             tables = {row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             assert {"users", "plans"}.issubset(tables), "Tables were not created"
+            try:
+                connection.execute("INSERT INTO users (name, age, height, weight, gender, goal, fitness_level, diet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                   ("", 20, 170, 65, "Male", "Muscle Gain", "Beginner", "Vegetarian"))
+            except sqlite3.IntegrityError:
+                pass
+            else:
+                raise AssertionError("Database accepted an invalid profile")
 
         client = app.test_client()
         assert client.get("/").status_code == 200
@@ -31,6 +39,8 @@ def run_tests():
         with db_connection() as connection:
             assert connection.execute("SELECT COUNT(*) FROM users WHERE id = ?", (user_id,)).fetchone()[0] == 1
             assert connection.execute("SELECT COUNT(*) FROM plans WHERE user_id = ?", (user_id,)).fetchone()[0] == 1
+            indexes = {row["name"] for row in connection.execute("PRAGMA index_list('plans')")}
+            assert "idx_plans_user_id" in indexes, "Plan lookup index was not created"
 
         dashboard = client.get(dashboard_url)
         assert dashboard.status_code == 200
@@ -43,7 +53,7 @@ def run_tests():
             if target.startswith("/"):
                 assert client.get(target).status_code == 200, target
 
-        for change in ({"age": "12"}, {"height": "300"}, {"weight": "10"}, {"name": ""}):
+        for change in ({"age": "12"}, {"height": "300"}, {"height": "nan"}, {"weight": "10"}, {"weight": "inf"}, {"name": ""}):
             assert client.post("/register", data={**profile, **change}).status_code == 200
         for unknown_path in ("/dashboard/999999", "/workout/999999", "/diet/999999"):
             assert client.get(unknown_path).status_code == 302

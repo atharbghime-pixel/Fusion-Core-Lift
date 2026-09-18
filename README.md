@@ -111,7 +111,7 @@ The project passed this suite before delivery, including data persistence, exact
 
 ## Database and API notes
 
-The database has `users` and `plans` tables, connected with a foreign key and cascade deletion. All SQL uses parameterized queries. No passwords or authentication are used in this first version.
+The database has `users` and `plans` tables, connected with a foreign key and cascade deletion. `plans` has an index for profile lookups and retains the workout/diet JSON snapshot generated when the profile is created. All SQL uses parameterized queries. No passwords or authentication are used in this first version.
 
 - `GET /health` — health check
 - `GET /users` — profile summary list

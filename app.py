@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from flask import flash, jsonify, redirect, render_template, request, url_for, Flask
 import json
+import math
 import os
 import sqlite3
 
@@ -41,15 +42,15 @@ def init_db():
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                age INTEGER NOT NULL,
-                height REAL NOT NULL,
-                weight REAL NOT NULL,
-                gender TEXT NOT NULL,
-                goal TEXT NOT NULL,
-                fitness_level TEXT NOT NULL,
-                diet TEXT NOT NULL,
-                injury TEXT DEFAULT '',
+                name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 80),
+                age INTEGER NOT NULL CHECK(age BETWEEN 13 AND 100),
+                height REAL NOT NULL CHECK(height BETWEEN 50 AND 250),
+                weight REAL NOT NULL CHECK(weight BETWEEN 20 AND 400),
+                gender TEXT NOT NULL CHECK(gender IN ('Male', 'Female', 'Other')),
+                goal TEXT NOT NULL CHECK(goal IN ('Weight Loss', 'Muscle Gain', 'General Fitness')),
+                fitness_level TEXT NOT NULL CHECK(fitness_level IN ('Beginner', 'Intermediate', 'Advanced')),
+                diet TEXT NOT NULL CHECK(diet IN ('Vegetarian', 'Non-Vegetarian')),
+                injury TEXT NOT NULL DEFAULT '' CHECK(length(injury) <= 200),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS plans (
@@ -60,6 +61,7 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS idx_plans_user_id ON plans(user_id, id DESC);
         """)
 
 
@@ -78,14 +80,14 @@ def validate_profile(data):
         age = None
     try:
         height = float(data.get("height", ""))
-        if not 50 <= height <= 250:
+        if not math.isfinite(height) or not 50 <= height <= 250:
             raise ValueError
     except (TypeError, ValueError):
         errors.append("Please enter a valid height between 50 and 250 cm.")
         height = None
     try:
         weight = float(data.get("weight", ""))
-        if not 20 <= weight <= 400:
+        if not math.isfinite(weight) or not 20 <= weight <= 400:
             raise ValueError
     except (TypeError, ValueError):
         errors.append("Please enter a valid weight between 20 and 400 kg.")
@@ -202,6 +204,11 @@ def get_user_and_plan(user_id):
     return user, plan
 
 
+def load_saved_plan(plan):
+    """Deserialize the workout and diet snapshot created with a profile."""
+    return json.loads(plan["workout_plan"]), json.loads(plan["diet_plan"])
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -233,8 +240,8 @@ def dashboard(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    # Plans remain saved as a snapshot, while displayed guidance is regenerated live.
-    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=generate_workout(user), diet=generate_diet(user))
+    workout, diet = load_saved_plan(plan)
+    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=workout, diet=diet)
 
 
 @app.route("/workout/<int:user_id>")
@@ -243,7 +250,8 @@ def workout(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    return render_template("workout.html", user=user, workout=generate_workout(user))
+    workout, _ = load_saved_plan(plan)
+    return render_template("workout.html", user=user, workout=workout)
 
 
 @app.route("/diet/<int:user_id>")
@@ -252,7 +260,8 @@ def diet(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=generate_diet(user))
+    _, diet = load_saved_plan(plan)
+    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=diet)
 
 
 @app.route("/health")
