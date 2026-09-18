@@ -27,6 +27,7 @@ FusionCoreLift/
 ├── requirements.txt
 ├── .gitignore
 ├── README.md
+├── HANDOFF.md               # concise continuity guide for another AI agent
 ├── database.db              # created automatically; intentionally not committed
 ├── templates/
 │   ├── base.html
@@ -113,3 +114,7 @@ Fusion Core Lift provides general fitness and nutrition estimates for informatio
 ## Future enhancements
 
 Potential future improvements include authentication, exercise videos, advanced tracking, wearable support, and professionally reviewed programs. They are intentionally out of scope for this reliable local prototype.
+
+## Continuing with another AI agent
+
+Give a future agent `HANDOFF.md` first. It describes the architecture, design decisions, and mandatory regression checks.

@@ -116,19 +116,31 @@ def injury_note(injury):
 
 def generate_workout(user):
     level = user["fitness_level"]
-    sets = {"Beginner": "2 sets", "Intermediate": "3 sets", "Advanced": "4 sets"}[level]
     cardio = {"Beginner": "20 min brisk walk", "Intermediate": "30 min brisk walk/cycle", "Advanced": "35 min cardio intervals"}[level]
-    if user["goal"] == "Weight Loss":
-        strength = [("Bodyweight squat", sets, "10–15 reps"), ("Wall or incline push-up", sets, "8–12 reps"), ("Glute bridge", sets, "12 reps"), ("Plank", sets, "20–40 sec")]
-    elif user["goal"] == "Muscle Gain":
-        strength = [("Squat", sets, "8–12 reps"), ("Push-up / modified push-up", sets, "8–12 reps"), ("Lunge", sets, "8–10 each side"), ("Glute bridge", sets, "12–15 reps")]
-    else:
-        strength = [("Squat", sets, "10–15 reps"), ("Push-up / modified push-up", sets, "8–12 reps"), ("Glute bridge", sets, "12 reps"), ("Plank", sets, "20–40 sec")]
+    # Each goal and level gets a distinct, progressively harder exercise selection.
+    plans = {
+        "Beginner": {
+            "Weight Loss": [("Bodyweight squat", "2 sets", "10–15 reps"), ("Wall push-up", "2 sets", "8–12 reps"), ("Glute bridge", "2 sets", "12 reps"), ("Plank", "2 sets", "20 sec")],
+            "Muscle Gain": [("Chair squat", "2 sets", "8–12 reps"), ("Incline push-up", "2 sets", "8–12 reps"), ("Reverse lunge", "2 sets", "8 each side"), ("Glute bridge", "2 sets", "12–15 reps")],
+            "General Fitness": [("Bodyweight squat", "2 sets", "10 reps"), ("Wall push-up", "2 sets", "10 reps"), ("Bird-dog", "2 sets", "8 each side"), ("Plank", "2 sets", "20 sec")]
+        },
+        "Intermediate": {
+            "Weight Loss": [("Squat", "3 sets", "15 reps"), ("Incline push-up", "3 sets", "10–12 reps"), ("Step-up", "3 sets", "10 each side"), ("Mountain climber", "3 sets", "20 sec")],
+            "Muscle Gain": [("Tempo squat", "3 sets", "10–12 reps"), ("Push-up", "3 sets", "8–12 reps"), ("Reverse lunge", "3 sets", "10 each side"), ("Single-leg glute bridge", "3 sets", "10 each side")],
+            "General Fitness": [("Goblet squat (light)", "3 sets", "12 reps"), ("Incline push-up", "3 sets", "10 reps"), ("Step-up", "3 sets", "10 each side"), ("Dead bug", "3 sets", "10 each side")]
+        },
+        "Advanced": {
+            "Weight Loss": [("Squat to calf raise", "4 sets", "15 reps"), ("Push-up", "4 sets", "12–15 reps"), ("Alternating reverse lunge", "4 sets", "12 each side"), ("High plank shoulder tap", "4 sets", "20 taps")],
+            "Muscle Gain": [("Pause squat", "4 sets", "8–10 reps"), ("Decline or standard push-up", "4 sets", "10–15 reps"), ("Split squat", "4 sets", "10 each side"), ("Single-leg hip thrust", "4 sets", "10 each side")],
+            "General Fitness": [("Squat", "4 sets", "15 reps"), ("Push-up", "4 sets", "12 reps"), ("Reverse lunge", "4 sets", "12 each side"), ("Plank", "4 sets", "40 sec")]
+        }
+    }
+    strength = list(plans[level][user["goal"]])
     # Simple keyword handling changes the actual plan as well as showing a safety warning.
     injury_text = user["injury"].lower()
     if "knee" in injury_text or "ankle" in injury_text:
         strength = [exercise for exercise in strength if "squat" not in exercise[0].lower() and "lunge" not in exercise[0].lower()]
-        strength.append(("Seated leg extension (gentle)", sets, "8–10 reps if comfortable"))
+        strength.append(("Seated leg extension (gentle)", "2 sets", "8–10 reps if comfortable"))
     if "shoulder" in injury_text or "wrist" in injury_text:
         strength = [exercise for exercise in strength if "push" not in exercise[0].lower()]
         strength.append(("Comfortable walking", "1 session", "15–30 min"))
@@ -136,6 +148,8 @@ def generate_workout(user):
         strength = [exercise for exercise in strength if "squat" not in exercise[0].lower()]
         strength.append(("Gentle mobility", "1 session", "5–10 min"))
     note = injury_note(user["injury"])
+    if not strength:
+        strength = [("Comfortable walking", "1 session", "15–30 min"), ("Gentle stretching", "1 session", "5–10 min")]
     return {"days": [
         {"day": "Monday", "focus": "Full-body strength", "exercises": strength},
         {"day": "Tuesday", "focus": "Cardio & mobility", "exercises": [(cardio, "1 session", "Comfortable pace"), ("Light stretching", "1 session", "5–10 min")]},
@@ -204,23 +218,26 @@ def dashboard(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=json.loads(plan["workout_plan"]), diet=json.loads(plan["diet_plan"]))
+    # Plans remain saved as a snapshot, while displayed guidance is regenerated live.
+    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=generate_workout(user), diet=generate_diet(user))
 
 
 @app.route("/workout/<int:user_id>")
 def workout(user_id):
     user, plan = get_user_and_plan(user_id)
     if not user or not plan:
+        flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    return render_template("workout.html", user=user, workout=json.loads(plan["workout_plan"]))
+    return render_template("workout.html", user=user, workout=generate_workout(user))
 
 
 @app.route("/diet/<int:user_id>")
 def diet(user_id):
     user, plan = get_user_and_plan(user_id)
     if not user or not plan:
+        flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=json.loads(plan["diet_plan"]))
+    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=generate_diet(user))
 
 
 @app.route("/health")
