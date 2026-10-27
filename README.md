@@ -73,6 +73,19 @@ py app.py
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
+### Optional: use from another device on the same Wi-Fi
+
+The app listens on your local network by default. Find your laptop's IPv4 address with `ipconfig`, then open `http://YOUR-IP:5000` from a device on the same Wi-Fi. If Windows Firewall asks, allow Python only on **Private networks**. This app is for trusted local networks, not public internet deployment.
+
+On macOS/Linux, use the same project files and run:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python3 -m pip install -r requirements.txt
+python3 app.py
+```
+
 ## Demo input
 
 Use this for a quick demo:

@@ -54,8 +54,18 @@ def run_tests():
             if target.startswith("/"):
                 assert client.get(target).status_code == 200, target
 
-        for change in ({"age": "12"}, {"height": "300"}, {"height": "nan"}, {"weight": "10"}, {"weight": "inf"}, {"name": ""}):
-            assert client.post("/register", data={**profile, **change}).status_code == 200
+        invalid_profiles = [
+            ({"age": "12"}, b"valid age", b"Test User"),
+            ({"height": "300"}, b"valid height", b"Test User"),
+            ({"height": "nan"}, b"valid height", b"Test User"),
+            ({"weight": "10"}, b"valid weight", b"Test User"),
+            ({"weight": "inf"}, b"valid weight", b"Test User"),
+            ({"name": ""}, b"Please enter your name", b'value="20"'),
+        ]
+        for change, message, retained_value in invalid_profiles:
+            invalid_page = client.post("/register", data={**profile, **change})
+            assert invalid_page.status_code == 200
+            assert message in invalid_page.data and retained_value in invalid_page.data
         for unknown_path in ("/dashboard/999999", "/workout/999999", "/diet/999999"):
             assert client.get(unknown_path).status_code == 302
 
@@ -66,6 +76,7 @@ def run_tests():
         assert len(client.get("/users").get_json()) == count_before_refresh
 
         injured = client.post("/register", data={**profile, "name": "Knee Test", "injury": "knee pain"}, follow_redirects=False)
+        injury_id = int(injured.headers["Location"].rsplit("/", 1)[1])
         injury_page = client.get(injured.headers["Location"])
         assert b"Low-impact plan" in injury_page.data and b"Chair squat" not in injury_page.data
         assert client.get("/health").get_json() == {"status": "healthy", "database": "connected"}

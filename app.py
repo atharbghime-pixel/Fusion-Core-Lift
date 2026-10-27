@@ -12,7 +12,7 @@ app.config.from_mapping(
     ADMIN_API_KEY=os.environ.get("ADMIN_API_KEY"),
     MAX_CONTENT_LENGTH=16 * 1024,
 )
-DATABASE = os.path.join(os.path.dirname(__file__), "database.db")
+DATABASE = os.environ.get("FUSION_CORE_LIFT_DATABASE", os.path.join(os.path.dirname(__file__), "database.db"))
 
 VALID_GENDERS = {"Male", "Female", "Other"}
 VALID_GOALS = {"Weight Loss", "Muscle Gain", "General Fitness"}
@@ -252,8 +252,8 @@ def dashboard(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    workout, diet = load_saved_plan(plan)
-    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=workout, diet=diet)
+    # Keep the stored plan snapshot for history, while displaying current rule-based guidance.
+    return render_template("dashboard.html", user=user, metrics=calculate_metrics(user), workout=generate_workout(user), diet=generate_diet(user))
 
 
 @app.route("/workout/<int:user_id>")
@@ -262,8 +262,7 @@ def workout(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    workout, _ = load_saved_plan(plan)
-    return render_template("workout.html", user=user, workout=workout)
+    return render_template("workout.html", user=user, workout=generate_workout(user))
 
 
 @app.route("/diet/<int:user_id>")
@@ -272,8 +271,7 @@ def diet(user_id):
     if not user or not plan:
         flash("We could not find that profile. Please create a new profile.", "warning")
         return redirect(url_for("register"))
-    _, diet = load_saved_plan(plan)
-    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=diet)
+    return render_template("diet.html", user=user, metrics=calculate_metrics(user), diet=generate_diet(user))
 
 
 @app.route("/health")
@@ -310,8 +308,8 @@ def user_api(user_id):
 init_db()
 
 if __name__ == "__main__":
-    app.run(
-        host=os.environ.get("HOST", "127.0.0.1"),
-        port=int(os.environ.get("PORT", "5000")),
-        debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true",
-    )
+    # Bind to the local network by default, while accepting common hosting variables.
+    host = os.environ.get("FUSION_CORE_LIFT_HOST", os.environ.get("HOST", "0.0.0.0"))
+    port = int(os.environ.get("FUSION_CORE_LIFT_PORT", os.environ.get("PORT", "5000")))
+    debug_setting = os.environ.get("FUSION_CORE_LIFT_DEBUG", os.environ.get("FLASK_DEBUG", "false"))
+    app.run(host=host, port=port, debug=debug_setting.lower() in {"1", "true", "yes"})

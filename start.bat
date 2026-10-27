@@ -28,6 +28,7 @@ venv\Scripts\python.exe -m pip install -r requirements.txt
 if %ERRORLEVEL% NEQ 0 goto :error
 
 echo Starting Fusion Core Lift at http://127.0.0.1:5000
+set "FUSION_CORE_LIFT_HOST=0.0.0.0"
 start "" http://127.0.0.1:5000
 venv\Scripts\python.exe app.py
 exit /b 0
